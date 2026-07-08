@@ -43,6 +43,7 @@ let correctionState = {
 const MAX_PANORAMA_WIDTH = 8192;
 const DEG_TO_RAD = Math.PI / 180;
 const GYRO_SMOOTHING = 0.16;
+const MAX_GYRO_ROLL = Math.PI / 2;
 const MIN_FOV = 30;
 const MAX_FOV = 150;
 const RESET_FOV = 60;
@@ -143,12 +144,7 @@ function getOrientationPitch(event) {
 function getOrientationRoll(event) {
   if (typeof event.gamma !== "number") return 0;
 
-  const screenAngle = screen.orientation?.angle ?? window.orientation ?? 0;
-  if (Math.abs(screenAngle) === 90 && typeof event.beta === "number") {
-    return clamp((event.beta - 90) * DEG_TO_RAD, -1.05, 1.05);
-  }
-
-  return clamp(event.gamma * DEG_TO_RAD, -1.05, 1.05);
+  return clamp(event.gamma * DEG_TO_RAD, -MAX_GYRO_ROLL, MAX_GYRO_ROLL);
 }
 
 function getGyroTarget(event) {
@@ -224,8 +220,8 @@ function startGyroRenderLoop() {
       );
       gyroState.currentRoll = clamp(
         gyroState.currentRoll + rollDelta * GYRO_SMOOTHING,
-        -1.05,
-        1.05,
+        -MAX_GYRO_ROLL,
+        MAX_GYRO_ROLL,
       );
 
       viewer.rotate({
