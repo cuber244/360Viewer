@@ -32,6 +32,10 @@ let gyroState = {
 const MAX_PANORAMA_WIDTH = 8192;
 const DEG_TO_RAD = Math.PI / 180;
 const GYRO_SMOOTHING = 0.16;
+const MIN_FOV = 30;
+const MAX_FOV = 150;
+const RESET_FOV = 60;
+const RESET_ZOOM = ((MAX_FOV - RESET_FOV) / (MAX_FOV - MIN_FOV)) * 100;
 
 function setStatus(message, warning = false) {
   statusEl.textContent = message;
@@ -57,7 +61,9 @@ function createViewer(panorama) {
     panorama,
     defaultYaw: 0,
     defaultPitch: 0,
-    defaultZoomLvl: 35,
+    defaultZoomLvl: RESET_ZOOM,
+    minFov: MIN_FOV,
+    maxFov: MAX_FOV,
     mousewheel: true,
     moveInertia: true,
     moveSpeed: 2.2,
@@ -431,7 +437,7 @@ resetButton.addEventListener("click", () => {
   viewer?.animate({
     yaw: 0,
     pitch: 0,
-    zoom: 35,
+    zoom: RESET_ZOOM,
     speed: "6rpm",
   });
 
