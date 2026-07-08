@@ -1,5 +1,4 @@
 import { Viewer } from "@photo-sphere-viewer/core";
-import { GyroscopePlugin } from "@photo-sphere-viewer/gyroscope-plugin";
 
 const viewerEl = document.querySelector("#viewer");
 const emptyState = document.querySelector("#emptyState");
@@ -17,8 +16,16 @@ const inputs = [
 
 let viewer;
 let currentUrl;
+let gyroState = {
+  enabled: false,
+  dragging: false,
+  latest: null,
+  yawOffset: 0,
+  pitchOffset: 0,
+};
 
 const MAX_PANORAMA_WIDTH = 8192;
+const DEG_TO_RAD = Math.PI / 180;
 
 function setStatus(message, warning = false) {
   statusEl.textContent = message;
@@ -30,18 +37,12 @@ function enableControls() {
   resetButton.disabled = false;
   fullscreenButton.disabled = false;
   gyroButton.disabled = false;
-  updateGyroscopeButton();
+  updateGyroButton();
 }
 
-function getGyroscope() {
-  return viewer?.getPlugin("gyroscope");
-}
-
-function updateGyroscopeButton() {
-  const gyroscope = getGyroscope();
-  const enabled = Boolean(gyroscope?.isEnabled());
-  gyroButton.textContent = enabled ? "Gyro On" : "Gyro";
-  gyroButton.classList.toggle("is-active", enabled);
+function updateGyroButton() {
+  gyroButton.textContent = gyroState.enabled ? "Gyro On" : "Gyro";
+  gyroButton.classList.toggle("is-active", gyroState.enabled);
 }
 
 function createViewer(panorama) {
@@ -55,24 +56,107 @@ function createViewer(panorama) {
     moveInertia: true,
     mousemove: true,
     touchmoveTwoFingers: false,
-    navbar: ["zoom", "move", "gyroscope", "caption", "fullscreen"],
+    navbar: ["zoom", "move", "caption", "fullscreen"],
     caption: "Drag or swipe to rotate",
-    lang: {
-      gyroscope: "Gyroscope",
-    },
-    plugins: [
-      GyroscopePlugin.withConfig({
-        touchmove: true,
-        roll: true,
-        absolutePosition: false,
-        moveMode: "smooth",
-      }),
-    ],
+  });
+}
+
+function normalizeRadians(value) {
+  return Math.atan2(Math.sin(value), Math.cos(value));
+}
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function getOrientationHeading(event) {
+  if (typeof event.webkitCompassHeading === "number") {
+    return event.webkitCompassHeading;
+  }
+  if (typeof event.alpha === "number") {
+    return 360 - event.alpha;
+  }
+  return null;
+}
+
+function getOrientationPitch(event) {
+  if (typeof event.beta !== "number") return 0;
+
+  const screenAngle = screen.orientation?.angle ?? window.orientation ?? 0;
+  if (Math.abs(screenAngle) === 90 && typeof event.gamma === "number") {
+    return clamp(event.gamma * DEG_TO_RAD, -1.25, 1.25);
+  }
+
+  return clamp((event.beta - 90) * DEG_TO_RAD, -1.25, 1.25);
+}
+
+function getGyroTarget(event) {
+  const heading = getOrientationHeading(event);
+  if (heading === null) return null;
+
+  const headingYaw = normalizeRadians(-heading * DEG_TO_RAD);
+  return {
+    headingYaw,
+    rawPitch: getOrientationPitch(event),
+    yaw: normalizeRadians(headingYaw + gyroState.yawOffset),
+    pitch: clamp(getOrientationPitch(event) + gyroState.pitchOffset, -1.25, 1.25),
+  };
+}
+
+function recenterGyroTo(yaw = 0, pitch = 0) {
+  if (!gyroState.latest) {
+    gyroState.yawOffset = yaw;
+    gyroState.pitchOffset = pitch;
+    return;
+  }
+
+  const target = getGyroTarget(gyroState.latest);
+  if (!target) return;
+
+  gyroState.yawOffset = normalizeRadians(yaw - target.headingYaw);
+  gyroState.pitchOffset = clamp(pitch - target.rawPitch, -1.25, 1.25);
+}
+
+function onDeviceOrientation(event) {
+  if (!gyroState.enabled || gyroState.dragging || !viewer) return;
+
+  gyroState.latest = event;
+  const target = getGyroTarget(event);
+  if (!target) return;
+
+  viewer.rotate({
+    yaw: target.yaw,
+    pitch: target.pitch,
+  });
+}
+
+function stopGyro() {
+  window.removeEventListener("deviceorientation", onDeviceOrientation);
+  gyroState.enabled = false;
+  updateGyroButton();
+}
+
+function setupDragOffsetTracking() {
+  viewerEl.addEventListener("pointerdown", () => {
+    if (gyroState.enabled) {
+      gyroState.dragging = true;
+    }
   });
 
-  const gyroscope = getGyroscope();
-  gyroscope?.addEventListener("gyroscope-updated", updateGyroscopeButton);
+  window.addEventListener("pointerup", () => {
+    if (!gyroState.enabled || !gyroState.dragging || !viewer) return;
+
+    gyroState.dragging = false;
+    const position = viewer.getPosition();
+    recenterGyroTo(position.yaw, position.pitch);
+  });
+
+  window.addEventListener("pointercancel", () => {
+    gyroState.dragging = false;
+  });
 }
+
+setupDragOffsetTracking();
 
 function readImageSize(file) {
   return new Promise((resolve, reject) => {
@@ -292,8 +376,11 @@ demoButton.addEventListener("click", async () => {
 });
 
 resetButton.addEventListener("click", () => {
-  const gyroscope = getGyroscope();
-  const wasGyroEnabled = Boolean(gyroscope?.isEnabled());
+  const wasGyroEnabled = gyroState.enabled;
+
+  if (wasGyroEnabled) {
+    recenterGyroTo(0, 0);
+  }
 
   viewer?.animate({
     yaw: 0,
@@ -304,33 +391,52 @@ resetButton.addEventListener("click", () => {
 
   setStatus(
     wasGyroEnabled
-      ? "Viewpoint reset. Gyroscope remains active, and drag still works."
+      ? "Viewpoint reset. Gyro remains active, and drag still works."
       : "Viewpoint reset.",
   );
 });
 
 gyroButton.addEventListener("click", async () => {
-  const gyroscope = getGyroscope();
-  if (!gyroscope) return;
+  if (!viewer) return;
 
   if (!window.isSecureContext) {
-    setStatus("Gyroscope requires HTTPS. It will work on GitHub Pages.", true);
+    setStatus("Gyro requires HTTPS. Open this viewer from GitHub Pages on iPhone.", true);
+    return;
+  }
+
+  if (!("DeviceOrientationEvent" in window)) {
+    setStatus("Gyro is not available in this browser.", true);
     return;
   }
 
   try {
-    if (gyroscope.isEnabled()) {
-      gyroscope.stop();
-      setStatus("Gyroscope off. Drag and swipe still work.");
+    if (gyroState.enabled) {
+      stopGyro();
+      setStatus("Gyro off. Drag and swipe still work.");
     } else {
-      setStatus("Requesting gyroscope permission...");
-      await gyroscope.start("smooth");
-      setStatus("Gyroscope on. You can still drag or swipe to adjust the view.");
+      setStatus("Requesting motion permission...");
+
+      if (typeof DeviceOrientationEvent.requestPermission === "function") {
+        const permission = await DeviceOrientationEvent.requestPermission();
+        if (permission !== "granted") {
+          setStatus("Motion permission was denied.", true);
+          return;
+        }
+      }
+
+      const position = viewer.getPosition();
+      gyroState.latest = null;
+      gyroState.yawOffset = position.yaw;
+      gyroState.pitchOffset = position.pitch;
+      gyroState.enabled = true;
+      window.addEventListener("deviceorientation", onDeviceOrientation, true);
+      updateGyroButton();
+      setStatus("Gyro on. Turn your phone to look around. Drag and swipe still work.");
     }
   } catch {
-    setStatus("Gyroscope is not available or permission was denied.", true);
+    setStatus("Could not start gyro. Check Safari motion permission settings.", true);
   } finally {
-    updateGyroscopeButton();
+    updateGyroButton();
   }
 });
 
@@ -344,5 +450,6 @@ fullscreenButton.addEventListener("click", async () => {
 
 window.addEventListener("beforeunload", () => {
   if (currentUrl) URL.revokeObjectURL(currentUrl);
+  stopGyro();
   viewer?.destroy();
 });

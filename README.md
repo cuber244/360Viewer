@@ -31,7 +31,9 @@ For the best result, use a 2:1 equirectangular 360 photo, such as an exported In
 
 You can still drag or swipe while gyroscope mode is on.
 
-Note: Gyroscope mode requires HTTPS. It works on GitHub Pages. It may not work when opening the HTML file directly or from a normal local HTTP server.
+Note: Gyroscope mode requires HTTPS. It works on GitHub Pages. It does not work when opening the HTML file directly.
+
+If `Gyro` does not respond on iPhone, check Safari's motion/orientation access setting and reload the page.
 
 ## Buttons
 
