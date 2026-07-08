@@ -1,0 +1,72 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+    <meta name="theme-color" content="#101217" />
+    <title>Insta360 360 Photo Viewer</title>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/core@5/index.min.css" />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <section class="viewer-stage" aria-label="360 photo viewer">
+        <div id="viewer" class="viewer"></div>
+
+        <div id="emptyState" class="empty-state">
+          <div class="empty-mark">360</div>
+          <h1>Insta360 Photo Viewer</h1>
+          <p>Load a 2:1 equirectangular photo, then drag or swipe to look around.</p>
+          <div class="empty-actions">
+            <label class="primary-upload">
+              <input id="photoInput" type="file" accept="image/*" />
+              Select Photo
+            </label>
+            <button id="demoPhoto" type="button" class="secondary-action">Demo</button>
+          </div>
+        </div>
+      </section>
+
+      <aside class="control-panel" aria-label="controls">
+        <div class="panel-top">
+          <div>
+            <p class="kicker">Local viewer</p>
+            <h2>360 Photo</h2>
+          </div>
+          <label class="icon-upload" title="Select Photo">
+            <input id="photoInputCompact" type="file" accept="image/*" />
+            <span aria-hidden="true">+</span>
+          </label>
+        </div>
+
+        <dl class="meta-grid">
+          <div>
+            <dt>File</dt>
+            <dd id="fileName">None</dd>
+          </div>
+          <div>
+            <dt>Image size</dt>
+            <dd id="imageSize">-</dd>
+          </div>
+        </dl>
+
+        <div class="actions">
+          <button id="resetView" type="button" disabled>Reset View</button>
+          <button id="fullscreen" type="button" disabled>Fullscreen</button>
+        </div>
+
+        <p id="status" class="status">Photos are loaded only inside this browser.</p>
+      </aside>
+    </main>
+
+    <script type="importmap">
+      {
+        "imports": {
+          "three": "https://cdn.jsdelivr.net/npm/three@0.166.1/build/three.module.js",
+          "@photo-sphere-viewer/core": "https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/core@5/index.module.js"
+        }
+      }
+    </script>
+    <script type="module" src="./app.js"></script>
+  </body>
+</html>
