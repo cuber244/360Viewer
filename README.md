@@ -9,6 +9,8 @@ This is a simple browser viewer for 360 photos.
 - Zoom with mouse wheel, pinch, or the viewer controls
 - Use fullscreen mode
 - Use phone gyroscope controls on supported smartphones
+- Add the viewer to your phone home screen
+- Correct tilted photos with roll and pitch offsets
 - Reset the viewpoint at any time
 
 ## How To Use
@@ -35,6 +37,25 @@ Note: Gyroscope mode requires HTTPS. It works on GitHub Pages. It does not work 
 
 If `Gyro` does not respond on iPhone, check Safari's motion/orientation access setting and reload the page.
 
+## Add To Home Screen
+
+On iPhone:
+
+1. Open the viewer in Safari.
+2. Tap the share button.
+3. Tap `Add to Home Screen`.
+4. Open the viewer from the new home screen icon.
+
+Pinch zoom remains available in the viewer.
+
+## Correcting A Tilted Photo
+
+If the whole photo looks tilted, use the correction controls.
+
+- `Photo Roll`: rotate the panorama clockwise or counterclockwise
+- `Photo Pitch`: tilt the panorama up or down
+- `Reset Correction`: return both corrections to zero
+
 ## Buttons
 
 - `Select Photo`: choose a 360 photo from your device
@@ -43,6 +64,9 @@ If `Gyro` does not respond on iPhone, check Safari's motion/orientation access s
 - `Gyro`: turn phone motion control on or off
 - `Fullscreen`: open the viewer fullscreen
 - `+`: choose another photo
+- `Photo Roll`: correct sideways tilt in the photo
+- `Photo Pitch`: correct up/down tilt in the photo
+- `Reset Correction`: reset photo tilt correction
 
 ## Privacy
 

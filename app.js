@@ -9,6 +9,11 @@ const resetButton = document.querySelector("#resetView");
 const fullscreenButton = document.querySelector("#fullscreen");
 const gyroButton = document.querySelector("#gyroToggle");
 const demoButton = document.querySelector("#demoPhoto");
+const rollOffsetInput = document.querySelector("#rollOffset");
+const pitchOffsetInput = document.querySelector("#pitchOffset");
+const rollOffsetValue = document.querySelector("#rollOffsetValue");
+const pitchOffsetValue = document.querySelector("#pitchOffsetValue");
+const resetCorrectionButton = document.querySelector("#resetCorrection");
 const inputs = [
   document.querySelector("#photoInput"),
   document.querySelector("#photoInputCompact"),
@@ -22,11 +27,17 @@ let gyroState = {
   latest: null,
   targetYaw: 0,
   targetPitch: 0,
+  targetRoll: 0,
   currentYaw: 0,
   currentPitch: 0,
+  currentRoll: 0,
   yawOffset: 0,
   pitchOffset: 0,
   animationFrame: 0,
+};
+let correctionState = {
+  roll: 0,
+  pitch: 0,
 };
 
 const MAX_PANORAMA_WIDTH = 8192;
@@ -43,16 +54,37 @@ function setStatus(message, warning = false) {
 }
 
 function enableControls() {
-  emptyState.classList.add("is-hidden");
-  resetButton.disabled = false;
-  fullscreenButton.disabled = false;
-  gyroButton.disabled = false;
+  document.querySelector("#emptyState")?.classList.add("is-hidden");
+  document.querySelector("#resetView")?.removeAttribute("disabled");
+  document.querySelector("#fullscreen")?.removeAttribute("disabled");
+  document.querySelector("#gyroToggle")?.removeAttribute("disabled");
+  document.querySelector("#resetCorrection")?.removeAttribute("disabled");
   updateGyroButton();
 }
 
+function formatDegrees(value) {
+  const number = Number(value);
+  return `${Number.isInteger(number) ? number : number.toFixed(1)}deg`;
+}
+
+function updateCorrectionLabels() {
+  rollOffsetValue.textContent = formatDegrees(correctionState.roll);
+  pitchOffsetValue.textContent = formatDegrees(correctionState.pitch);
+}
+
+function applyPhotoCorrection() {
+  updateCorrectionLabels();
+  viewer?.setOption("sphereCorrection", {
+    roll: `${correctionState.roll}deg`,
+    tilt: `${correctionState.pitch}deg`,
+  });
+}
+
 function updateGyroButton() {
-  gyroButton.textContent = gyroState.enabled ? "Gyro On" : "Gyro";
-  gyroButton.classList.toggle("is-active", gyroState.enabled);
+  const button = document.querySelector("#gyroToggle");
+  if (!button) return;
+  button.textContent = gyroState.enabled ? "Gyro On" : "Gyro";
+  button.classList.toggle("is-active", gyroState.enabled);
 }
 
 function createViewer(panorama) {
@@ -64,9 +96,14 @@ function createViewer(panorama) {
     defaultZoomLvl: RESET_ZOOM,
     minFov: MIN_FOV,
     maxFov: MAX_FOV,
+    sphereCorrection: {
+      roll: `${correctionState.roll}deg`,
+      tilt: `${correctionState.pitch}deg`,
+    },
     mousewheel: true,
     moveInertia: true,
     moveSpeed: 2.2,
+    zoomSpeed: 1.5,
     mousemove: true,
     touchmoveTwoFingers: false,
     navbar: ["zoom", "move", "caption", "fullscreen"],
@@ -103,6 +140,17 @@ function getOrientationPitch(event) {
   return clamp((event.beta - 90) * DEG_TO_RAD, -1.25, 1.25);
 }
 
+function getOrientationRoll(event) {
+  if (typeof event.gamma !== "number") return 0;
+
+  const screenAngle = screen.orientation?.angle ?? window.orientation ?? 0;
+  if (Math.abs(screenAngle) === 90 && typeof event.beta === "number") {
+    return clamp((event.beta - 90) * DEG_TO_RAD, -1.05, 1.05);
+  }
+
+  return clamp(event.gamma * DEG_TO_RAD, -1.05, 1.05);
+}
+
 function getGyroTarget(event) {
   const heading = getOrientationHeading(event);
   if (heading === null) return null;
@@ -111,8 +159,10 @@ function getGyroTarget(event) {
   return {
     headingYaw,
     rawPitch: getOrientationPitch(event),
+    rawRoll: getOrientationRoll(event),
     yaw: normalizeRadians(headingYaw + gyroState.yawOffset),
     pitch: clamp(getOrientationPitch(event) + gyroState.pitchOffset, -1.25, 1.25),
+    roll: getOrientationRoll(event),
   };
 }
 
@@ -120,6 +170,9 @@ function recenterGyroTo(yaw = 0, pitch = 0) {
   if (!gyroState.latest) {
     gyroState.yawOffset = yaw;
     gyroState.pitchOffset = pitch;
+    gyroState.targetRoll = 0;
+    gyroState.currentRoll = 0;
+    viewer?.dynamics?.roll?.goto(0, 30);
     return;
   }
 
@@ -130,8 +183,10 @@ function recenterGyroTo(yaw = 0, pitch = 0) {
   gyroState.pitchOffset = clamp(pitch - target.rawPitch, -1.25, 1.25);
   gyroState.targetYaw = yaw;
   gyroState.targetPitch = pitch;
+  gyroState.targetRoll = 0;
   gyroState.currentYaw = yaw;
   gyroState.currentPitch = pitch;
+  gyroState.currentRoll = 0;
 }
 
 function onDeviceOrientation(event) {
@@ -143,6 +198,7 @@ function onDeviceOrientation(event) {
 
   gyroState.targetYaw = target.yaw;
   gyroState.targetPitch = target.pitch;
+  gyroState.targetRoll = target.roll;
 }
 
 function startGyroRenderLoop() {
@@ -156,6 +212,7 @@ function startGyroRenderLoop() {
     if (!gyroState.dragging) {
       const yawDelta = normalizeRadians(gyroState.targetYaw - gyroState.currentYaw);
       const pitchDelta = gyroState.targetPitch - gyroState.currentPitch;
+      const rollDelta = gyroState.targetRoll - gyroState.currentRoll;
 
       gyroState.currentYaw = normalizeRadians(
         gyroState.currentYaw + yawDelta * GYRO_SMOOTHING,
@@ -165,11 +222,17 @@ function startGyroRenderLoop() {
         -1.25,
         1.25,
       );
+      gyroState.currentRoll = clamp(
+        gyroState.currentRoll + rollDelta * GYRO_SMOOTHING,
+        -1.05,
+        1.05,
+      );
 
       viewer.rotate({
         yaw: gyroState.currentYaw,
         pitch: gyroState.currentPitch,
       });
+      viewer.dynamics?.roll?.setValue(gyroState.currentRoll);
     }
 
     gyroState.animationFrame = requestAnimationFrame(render);
@@ -185,6 +248,9 @@ function stopGyro() {
     gyroState.animationFrame = 0;
   }
   gyroState.enabled = false;
+  gyroState.targetRoll = 0;
+  gyroState.currentRoll = 0;
+  viewer?.dynamics?.roll?.goto(0, 30);
   updateGyroButton();
 }
 
@@ -299,11 +365,16 @@ function getRatioWarning({ width, height }) {
 async function setPanorama(url, meta) {
   if (!viewer) {
     createViewer(url);
+    await viewer.state.loadingPromise;
   } else {
     await viewer.setPanorama(url, {
       transition: false,
       caption: "Drag or swipe to rotate",
       position: { yaw: 0, pitch: 0 },
+      sphereCorrection: {
+        roll: `${correctionState.roll}deg`,
+        tilt: `${correctionState.pitch}deg`,
+      },
     });
   }
 
@@ -433,6 +504,7 @@ resetButton.addEventListener("click", () => {
   if (wasGyroEnabled) {
     recenterGyroTo(0, 0);
   }
+  viewer?.dynamics?.roll?.goto(0, 30);
 
   viewer?.animate({
     yaw: 0,
@@ -482,8 +554,10 @@ gyroButton.addEventListener("click", async () => {
       gyroState.pitchOffset = position.pitch;
       gyroState.targetYaw = position.yaw;
       gyroState.targetPitch = position.pitch;
+      gyroState.targetRoll = 0;
       gyroState.currentYaw = position.yaw;
       gyroState.currentPitch = position.pitch;
+      gyroState.currentRoll = 0;
       gyroState.enabled = true;
       window.addEventListener("deviceorientation", onDeviceOrientation, true);
       startGyroRenderLoop();
@@ -498,12 +572,34 @@ gyroButton.addEventListener("click", async () => {
 });
 
 fullscreenButton.addEventListener("click", async () => {
-  if (!document.fullscreenElement) {
-    await document.documentElement.requestFullscreen();
-  } else {
-    await document.exitFullscreen();
-  }
+  viewer?.toggleFullscreen();
 });
+
+rollOffsetInput.addEventListener("input", () => {
+  correctionState.roll = Number(rollOffsetInput.value);
+  applyPhotoCorrection();
+});
+
+pitchOffsetInput.addEventListener("input", () => {
+  correctionState.pitch = Number(pitchOffsetInput.value);
+  applyPhotoCorrection();
+});
+
+resetCorrectionButton.addEventListener("click", () => {
+  correctionState = { roll: 0, pitch: 0 };
+  rollOffsetInput.value = "0";
+  pitchOffsetInput.value = "0";
+  applyPhotoCorrection();
+  setStatus("Photo correction reset.");
+});
+
+if ("serviceWorker" in navigator) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("./service-worker.js").catch(() => {});
+  });
+}
+
+updateCorrectionLabels();
 
 window.addEventListener("beforeunload", () => {
   if (currentUrl) URL.revokeObjectURL(currentUrl);
