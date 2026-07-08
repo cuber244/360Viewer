@@ -43,7 +43,6 @@ let correctionState = {
 const MAX_PANORAMA_WIDTH = 8192;
 const DEG_TO_RAD = Math.PI / 180;
 const GYRO_SMOOTHING = 0.16;
-const MAX_GYRO_ROLL = Math.PI / 2;
 const MIN_FOV = 30;
 const MAX_FOV = 150;
 const RESET_FOV = 60;
@@ -141,12 +140,6 @@ function getOrientationPitch(event) {
   return clamp((event.beta - 90) * DEG_TO_RAD, -1.25, 1.25);
 }
 
-function getOrientationRoll(event) {
-  if (typeof event.gamma !== "number") return 0;
-
-  return clamp(event.gamma * DEG_TO_RAD, -MAX_GYRO_ROLL, MAX_GYRO_ROLL);
-}
-
 function getGyroTarget(event) {
   const heading = getOrientationHeading(event);
   if (heading === null) return null;
@@ -155,10 +148,9 @@ function getGyroTarget(event) {
   return {
     headingYaw,
     rawPitch: getOrientationPitch(event),
-    rawRoll: getOrientationRoll(event),
     yaw: normalizeRadians(headingYaw + gyroState.yawOffset),
     pitch: clamp(getOrientationPitch(event) + gyroState.pitchOffset, -1.25, 1.25),
-    roll: getOrientationRoll(event),
+    roll: 0,
   };
 }
 
@@ -220,8 +212,8 @@ function startGyroRenderLoop() {
       );
       gyroState.currentRoll = clamp(
         gyroState.currentRoll + rollDelta * GYRO_SMOOTHING,
-        -MAX_GYRO_ROLL,
-        MAX_GYRO_ROLL,
+        -Math.PI,
+        Math.PI,
       );
 
       viewer.rotate({
