@@ -1,4 +1,5 @@
 import { Viewer } from "@photo-sphere-viewer/core";
+import { GyroscopePlugin } from "@photo-sphere-viewer/gyroscope-plugin";
 
 const viewerEl = document.querySelector("#viewer");
 const emptyState = document.querySelector("#emptyState");
@@ -7,6 +8,7 @@ const fileNameEl = document.querySelector("#fileName");
 const imageSizeEl = document.querySelector("#imageSize");
 const resetButton = document.querySelector("#resetView");
 const fullscreenButton = document.querySelector("#fullscreen");
+const gyroButton = document.querySelector("#gyroToggle");
 const demoButton = document.querySelector("#demoPhoto");
 const inputs = [
   document.querySelector("#photoInput"),
@@ -27,6 +29,19 @@ function enableControls() {
   emptyState.classList.add("is-hidden");
   resetButton.disabled = false;
   fullscreenButton.disabled = false;
+  gyroButton.disabled = false;
+  updateGyroscopeButton();
+}
+
+function getGyroscope() {
+  return viewer?.getPlugin("gyroscope");
+}
+
+function updateGyroscopeButton() {
+  const gyroscope = getGyroscope();
+  const enabled = Boolean(gyroscope?.isEnabled());
+  gyroButton.textContent = enabled ? "Gyro On" : "Gyro";
+  gyroButton.classList.toggle("is-active", enabled);
 }
 
 function createViewer(panorama) {
@@ -38,10 +53,25 @@ function createViewer(panorama) {
     defaultZoomLvl: 35,
     mousewheel: true,
     moveInertia: true,
+    mousemove: true,
     touchmoveTwoFingers: false,
-    navbar: ["zoom", "move", "caption", "fullscreen"],
+    navbar: ["zoom", "move", "gyroscope", "caption", "fullscreen"],
     caption: "Drag or swipe to rotate",
+    lang: {
+      gyroscope: "Gyroscope",
+    },
+    plugins: [
+      GyroscopePlugin.withConfig({
+        touchmove: true,
+        roll: true,
+        absolutePosition: false,
+        moveMode: "smooth",
+      }),
+    ],
   });
+
+  const gyroscope = getGyroscope();
+  gyroscope?.addEventListener("gyroscope-updated", updateGyroscopeButton);
 }
 
 function readImageSize(file) {
@@ -262,12 +292,46 @@ demoButton.addEventListener("click", async () => {
 });
 
 resetButton.addEventListener("click", () => {
+  const gyroscope = getGyroscope();
+  const wasGyroEnabled = Boolean(gyroscope?.isEnabled());
+
   viewer?.animate({
     yaw: 0,
     pitch: 0,
     zoom: 35,
     speed: "6rpm",
   });
+
+  setStatus(
+    wasGyroEnabled
+      ? "Viewpoint reset. Gyroscope remains active, and drag still works."
+      : "Viewpoint reset.",
+  );
+});
+
+gyroButton.addEventListener("click", async () => {
+  const gyroscope = getGyroscope();
+  if (!gyroscope) return;
+
+  if (!window.isSecureContext) {
+    setStatus("Gyroscope requires HTTPS. It will work on GitHub Pages.", true);
+    return;
+  }
+
+  try {
+    if (gyroscope.isEnabled()) {
+      gyroscope.stop();
+      setStatus("Gyroscope off. Drag and swipe still work.");
+    } else {
+      setStatus("Requesting gyroscope permission...");
+      await gyroscope.start("smooth");
+      setStatus("Gyroscope on. You can still drag or swipe to adjust the view.");
+    }
+  } catch {
+    setStatus("Gyroscope is not available or permission was denied.", true);
+  } finally {
+    updateGyroscopeButton();
+  }
 });
 
 fullscreenButton.addEventListener("click", async () => {
