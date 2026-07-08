@@ -54,6 +54,7 @@ function createViewer(panorama) {
     defaultZoomLvl: 35,
     mousewheel: true,
     moveInertia: true,
+    moveSpeed: 2.2,
     mousemove: true,
     touchmoveTwoFingers: false,
     navbar: ["zoom", "move", "caption", "fullscreen"],
@@ -94,7 +95,7 @@ function getGyroTarget(event) {
   const heading = getOrientationHeading(event);
   if (heading === null) return null;
 
-  const headingYaw = normalizeRadians(-heading * DEG_TO_RAD);
+  const headingYaw = normalizeRadians(heading * DEG_TO_RAD);
   return {
     headingYaw,
     rawPitch: getOrientationPitch(event),
