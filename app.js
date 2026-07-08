@@ -20,12 +20,18 @@ let gyroState = {
   enabled: false,
   dragging: false,
   latest: null,
+  targetYaw: 0,
+  targetPitch: 0,
+  currentYaw: 0,
+  currentPitch: 0,
   yawOffset: 0,
   pitchOffset: 0,
+  animationFrame: 0,
 };
 
 const MAX_PANORAMA_WIDTH = 8192;
 const DEG_TO_RAD = Math.PI / 180;
+const GYRO_SMOOTHING = 0.16;
 
 function setStatus(message, warning = false) {
   statusEl.textContent = message;
@@ -116,23 +122,62 @@ function recenterGyroTo(yaw = 0, pitch = 0) {
 
   gyroState.yawOffset = normalizeRadians(yaw - target.headingYaw);
   gyroState.pitchOffset = clamp(pitch - target.rawPitch, -1.25, 1.25);
+  gyroState.targetYaw = yaw;
+  gyroState.targetPitch = pitch;
+  gyroState.currentYaw = yaw;
+  gyroState.currentPitch = pitch;
 }
 
 function onDeviceOrientation(event) {
-  if (!gyroState.enabled || gyroState.dragging || !viewer) return;
+  if (!gyroState.enabled || !viewer) return;
 
   gyroState.latest = event;
   const target = getGyroTarget(event);
   if (!target) return;
 
-  viewer.rotate({
-    yaw: target.yaw,
-    pitch: target.pitch,
-  });
+  gyroState.targetYaw = target.yaw;
+  gyroState.targetPitch = target.pitch;
+}
+
+function startGyroRenderLoop() {
+  if (gyroState.animationFrame) return;
+
+  const render = () => {
+    gyroState.animationFrame = 0;
+
+    if (!gyroState.enabled || !viewer) return;
+
+    if (!gyroState.dragging) {
+      const yawDelta = normalizeRadians(gyroState.targetYaw - gyroState.currentYaw);
+      const pitchDelta = gyroState.targetPitch - gyroState.currentPitch;
+
+      gyroState.currentYaw = normalizeRadians(
+        gyroState.currentYaw + yawDelta * GYRO_SMOOTHING,
+      );
+      gyroState.currentPitch = clamp(
+        gyroState.currentPitch + pitchDelta * GYRO_SMOOTHING,
+        -1.25,
+        1.25,
+      );
+
+      viewer.rotate({
+        yaw: gyroState.currentYaw,
+        pitch: gyroState.currentPitch,
+      });
+    }
+
+    gyroState.animationFrame = requestAnimationFrame(render);
+  };
+
+  gyroState.animationFrame = requestAnimationFrame(render);
 }
 
 function stopGyro() {
   window.removeEventListener("deviceorientation", onDeviceOrientation);
+  if (gyroState.animationFrame) {
+    cancelAnimationFrame(gyroState.animationFrame);
+    gyroState.animationFrame = 0;
+  }
   gyroState.enabled = false;
   updateGyroButton();
 }
@@ -429,8 +474,13 @@ gyroButton.addEventListener("click", async () => {
       gyroState.latest = null;
       gyroState.yawOffset = position.yaw;
       gyroState.pitchOffset = position.pitch;
+      gyroState.targetYaw = position.yaw;
+      gyroState.targetPitch = position.pitch;
+      gyroState.currentYaw = position.yaw;
+      gyroState.currentPitch = position.pitch;
       gyroState.enabled = true;
       window.addEventListener("deviceorientation", onDeviceOrientation, true);
+      startGyroRenderLoop();
       updateGyroButton();
       setStatus("Gyro on. Turn your phone to look around. Drag and swipe still work.");
     }
