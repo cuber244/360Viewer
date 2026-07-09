@@ -1,4 +1,4 @@
-const CACHE_NAME = "insta360-viewer-v2";
+const CACHE_NAME = "insta360-viewer-v42";
 const APP_ASSETS = [
   "./",
   "./index.html",

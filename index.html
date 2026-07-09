@@ -12,21 +12,23 @@
     <link rel="icon" href="./icon.svg" type="image/svg+xml" />
     <link rel="apple-touch-icon" href="./icon.svg" />
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/core@5/index.min.css" />
-    <link rel="stylesheet" href="./styles.css" />
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/video-plugin@5/index.min.css" />
+    <link rel="stylesheet" href="./styles.css?v=42" />
   </head>
   <body>
     <main class="app-shell">
       <section class="viewer-stage" aria-label="360 photo viewer">
         <div id="viewer" class="viewer"></div>
+        <canvas id="projectionCanvas" class="projection-canvas" aria-label="projection viewer"></canvas>
 
         <div id="emptyState" class="empty-state">
           <div class="empty-mark">360</div>
           <h1>Insta360 Photo Viewer</h1>
-          <p>Load a 2:1 equirectangular photo, then drag or swipe to look around.</p>
+          <p>Load a 2:1 equirectangular photo or video, then drag or swipe to look around.</p>
           <div class="empty-actions">
             <label class="primary-upload">
-              <input id="photoInput" type="file" accept="image/*" />
-              Select Photo
+              <input id="photoInput" type="file" accept="image/*,video/*,.insp,.insv" />
+              Select File
             </label>
             <button id="demoPhoto" type="button" class="secondary-action">Demo</button>
           </div>
@@ -40,7 +42,7 @@
             <h2>360 Photo</h2>
           </div>
           <label class="icon-upload" title="Select Photo">
-            <input id="photoInputCompact" type="file" accept="image/*" />
+            <input id="photoInputCompact" type="file" accept="image/*,video/*,.insp,.insv" />
             <span aria-hidden="true">+</span>
           </label>
         </div>
@@ -62,16 +64,47 @@
           <button id="fullscreen" type="button" disabled>Fullscreen</button>
         </div>
 
+        <div class="projection-panel" aria-label="projection mode">
+          <button class="projection-mode is-active" type="button" data-projection="normal" disabled>Normal</button>
+          <button class="projection-mode" type="button" data-projection="planet" disabled>Planet</button>
+        </div>
+
+        <div id="planetSensitivityPanel" class="planet-sensitivity-panel" aria-label="planet sensitivity">
+          <div class="slider-row">
+            <label for="planetSensitivity">Planet Sens.</label>
+            <input id="planetSensitivity" type="range" min="25" max="250" step="5" value="135" />
+            <output id="planetSensitivityValue" for="planetSensitivity">135%</output>
+          </div>
+        </div>
+
+        <div id="stitchPanel" class="stitch-panel" aria-label="insta360 stitch">
+          <div class="slider-row">
+            <label for="stitchBlend">Lens Blend</label>
+            <input id="stitchBlend" type="range" min="0" max="85" step="1" value="0" />
+            <output id="stitchBlendValue" for="stitchBlend">0deg</output>
+          </div>
+          <div class="slider-row">
+            <label for="stitchCrop">Lens Crop</label>
+            <input id="stitchCrop" type="range" min="85" max="95" step="0.1" value="91" />
+            <output id="stitchCropValue" for="stitchCrop">91.0%</output>
+          </div>
+        </div>
+
         <div class="correction-panel" aria-label="photo correction">
           <div class="slider-row">
+            <label for="yawOffset">Photo Yaw</label>
+            <input id="yawOffset" type="range" min="-90" max="90" step="0.5" value="0" />
+            <output id="yawOffsetValue" for="yawOffset">0deg</output>
+          </div>
+          <div class="slider-row">
             <label for="rollOffset">Photo Roll</label>
-            <input id="rollOffset" type="range" min="-30" max="30" step="0.5" value="0" />
-            <output id="rollOffsetValue" for="rollOffset">0°</output>
+            <input id="rollOffset" type="range" min="-90" max="90" step="0.5" value="0" />
+            <output id="rollOffsetValue" for="rollOffset">0deg</output>
           </div>
           <div class="slider-row">
             <label for="pitchOffset">Photo Pitch</label>
-            <input id="pitchOffset" type="range" min="-30" max="30" step="0.5" value="0" />
-            <output id="pitchOffsetValue" for="pitchOffset">0°</output>
+            <input id="pitchOffset" type="range" min="-90" max="90" step="0.5" value="0" />
+            <output id="pitchOffsetValue" for="pitchOffset">0deg</output>
           </div>
           <button id="resetCorrection" type="button" disabled>Reset Correction</button>
         </div>
@@ -83,11 +116,13 @@
     <script type="importmap">
       {
           "imports": {
-            "three": "https://cdn.jsdelivr.net/npm/three@0.166.1/build/three.module.js",
-          "@photo-sphere-viewer/core": "https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/core@5/index.module.js"
+          "three": "https://cdn.jsdelivr.net/npm/three@0.166.1/build/three.module.js",
+          "@photo-sphere-viewer/core": "https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/core@5/index.module.js",
+          "@photo-sphere-viewer/video-plugin": "https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/video-plugin@5/index.module.js",
+          "@photo-sphere-viewer/equirectangular-video-adapter": "https://cdn.jsdelivr.net/npm/@photo-sphere-viewer/equirectangular-video-adapter@5/index.module.js"
         }
       }
     </script>
-    <script type="module" src="./app.js"></script>
+        <script type="module" src="./app.js?v=42"></script>
   </body>
 </html>

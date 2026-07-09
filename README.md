@@ -1,12 +1,14 @@
 # Insta360 360 Photo Viewer
 
-This is a simple browser viewer for 360 photos.
+This is a simple browser viewer for 360 photos and videos.
 
 ## What You Can Do
 
-- Open a 360 photo in your browser
+- Open a 360 photo or 360 video in your browser
 - Rotate the view by dragging or swiping
 - Zoom with mouse wheel, pinch, or the viewer controls
+- Play, pause, seek, and mute 360 videos
+- Switch projection modes: `Normal` and `Planet`
 - Use fullscreen mode
 - Use phone gyroscope controls on supported smartphones
 - Add the viewer to your phone home screen
@@ -16,12 +18,12 @@ This is a simple browser viewer for 360 photos.
 ## How To Use
 
 1. Open the viewer page in your browser.
-2. Tap or click `Select Photo`.
-3. Choose a 360 photo from your device.
+2. Tap or click `Select File`.
+3. Choose a 360 photo or 360 video from your device.
 4. Drag or swipe the image to look around.
 5. Use `Reset View` to return to the front view.
 
-For the best result, use a 2:1 equirectangular 360 photo, such as an exported Insta360 photo.
+For the best result, use a 2:1 equirectangular 360 photo or video, such as an exported Insta360 file.
 
 ## Using Gyroscope On iPhone Or Android
 
@@ -56,9 +58,16 @@ If the whole photo looks tilted, use the correction controls.
 - `Photo Pitch`: tilt the panorama up or down
 - `Reset Correction`: return both corrections to zero
 
+## Projection Modes
+
+- `Normal`: standard 360 viewer mode
+- `Planet`: shader-based little-planet style projection
+
+`Planet` uses a separate renderer from the normal viewer. Drag to rotate and use the mouse wheel or pinch-style zoom gesture support from your browser/device where available.
+
 ## Buttons
 
-- `Select Photo`: choose a 360 photo from your device
+- `Select File`: choose a 360 photo or video from your device
 - `Demo`: load a sample panorama
 - `Reset View`: return to the front view and default zoom
 - `Gyro`: turn phone motion control on or off
@@ -70,10 +79,12 @@ If the whole photo looks tilted, use the correction controls.
 
 ## Privacy
 
-Selected photos stay inside your browser.
+Selected photos and videos stay inside your browser.
 
-The viewer does not upload your photos to GitHub, a server, or any cloud storage.
+The viewer does not upload your files to GitHub, a server, or any cloud storage.
 
 ## Large Photos
 
 Very large photos may be resized inside the browser for smoother viewing. The original photo on your device is not changed.
+
+Large videos are not resized. Playback smoothness depends on your device performance and the video resolution.
